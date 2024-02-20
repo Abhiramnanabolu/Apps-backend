@@ -288,8 +288,8 @@ app.post("/ec/add-address", async (request, response) => {
   }
 });
 
-//to add a product to a cart
-app.post("/ec/cart/add", async (request, response) => {
+//to add a product to a cart (NOT BEING USED)
+app.post("/ec/cart/add-item", async (request, response) => {
   try {
     const { userId, productId, quantity,price } = request.body;
 
@@ -308,6 +308,50 @@ app.post("/ec/cart/add", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+//to add a product to a cart (updated) it even checks if same product is in the cart updates it if present
+app.post("/ec/cart/add", async (request, response) => {
+  try {
+    const { userId, productId, quantity, price } = request.body;
+
+    // Check if the cart item already exists
+    const checkCartItemQuery = `
+      SELECT * FROM cart
+      WHERE user_id = ? AND product_id = ?;
+    `;
+
+    const checkCartItem = await db2.get(checkCartItemQuery, [userId, productId]);
+
+    if (checkCartItem) {
+      // If the cart item exists, update the quantity and price
+      const updateQuantityAndPriceQuery = `
+        UPDATE cart
+        SET quantity = ?, price = ?
+        WHERE user_id = ? AND product_id = ?;
+      `;
+
+      const updateParams = [quantity, price, userId, productId];
+      await db2.run(updateQuantityAndPriceQuery, updateParams);
+
+      response.status(200).json({ message: 'Item quantity and price updated in cart successfully' });
+    } else {
+      // If the cart item doesn't exist, insert a new row
+      const insertCartItemQuery = `
+        INSERT INTO cart (user_id, product_id, quantity, price)
+        VALUES (?, ?, ?, ?);
+      `;
+
+      const insertParams = [userId, productId, quantity, price];
+      await db2.run(insertCartItemQuery, insertParams);
+
+      response.status(201).json({ message: 'Item added to cart successfully' });
+    }
+  } catch (error) {
+    console.error("Error adding item to cart:", error.message);
+    response.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 
 //to change the quantity of a product in the cart
@@ -350,6 +394,48 @@ app.delete("/ec/cart/remove", async (request, response) => {
     response.status(200).json({ message: 'Product removed from cart successfully' });
   } catch (error) {
     console.error("Error removing product from cart:", error.message);
+    response.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+//to get all the products in the cart of a user
+app.post("/ec/cart/products", async (request, response) => {
+  try {
+    const { userId } = request.body;
+
+    const getCartProductsQuery = `
+      SELECT * FROM cart
+      WHERE user_id = ?;
+    `;
+
+    const cartProducts = await db2.all(getCartProductsQuery, [userId]);
+
+    response.status(200).json(cartProducts);
+  } catch (error) {
+    console.error("Error fetching cart products:", error.message);
+    response.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+//get details of a product with its id (used in the Your Cart Section)
+app.get("/ec/product/:productId", async (request, response) => {
+  try {
+    const { productId } = request.params;
+
+    const getProductDetailsQuery = `
+      SELECT * FROM products
+      WHERE productId = ?;
+    `;
+
+    const productDetails = await db.get(getProductDetailsQuery, [productId]);
+
+    if (productDetails) {
+      response.status(200).json(productDetails);
+    } else {
+      response.status(404).json({ error: 'Product not found' });
+    }
+  } catch (error) {
+    console.error("Error fetching product details:", error.message);
     response.status(500).json({ error: "Internal Server Error" });
   }
 });

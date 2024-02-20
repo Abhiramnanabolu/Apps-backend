@@ -33,6 +33,10 @@ const initializeDBAndServer = async () => {
 initializeDBAndServer();
 app.use(express.json());
 
+app.get("/", async (req,res)=>{
+  res.send("Its Working")
+})
+
 app.get("/ec/users", async (request, response) => {
     
     const getBookQuery = `

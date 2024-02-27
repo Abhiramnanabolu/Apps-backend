@@ -9,7 +9,7 @@ app.use(cors())
 const jwt = require("jsonwebtoken");
 const dbPath = path.join(__dirname, "EC-DB.db");
 const dbPath2 = path.join(__dirname, "EC-DB2.db");
-
+const Port=process.env.PORT || 3001
 let db = null;
 
 const initializeDBAndServer = async () => {
@@ -22,7 +22,7 @@ const initializeDBAndServer = async () => {
       filename: dbPath2,
       driver: sqlite3.Database,
     });
-    app.listen(3001, () => {
+    app.listen(Port, () => {
       console.log("Server Running at http://localhost:3001/");
     });
   } catch (e) {

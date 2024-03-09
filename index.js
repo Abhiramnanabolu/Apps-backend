@@ -9,6 +9,7 @@ app.use(cors())
 const jwt = require("jsonwebtoken");
 const dbPath = path.join(__dirname, "EC-DB.db");
 const dbPath2 = path.join(__dirname, "EC-DB2.db");
+const EPDBPath = path.join(__dirname, "Edp.db");
 const Port=process.env.PORT || 3001
 let db = null;
 
@@ -16,10 +17,14 @@ const initializeDBAndServer = async () => {
   try {
     db = await open({
       filename: dbPath,
-      driver: sqlite3.Database,
+      driver: sqlite3.Database,// ec-1
     });
     db2 = await open({
       filename: dbPath2,
+      driver: sqlite3.Database,//ec-2
+    });
+    EPDB=await open({
+      filename : EPDBPath,
       driver: sqlite3.Database,
     });
     app.listen(Port, () => {
@@ -179,7 +184,6 @@ app.post("/ec/user/post", async (request, response) => {
     }
   });
 
-
   app.put("/ec/user/address/add", async (request, response) => {
     try {
       const { user_id, address } = request.body;
@@ -200,8 +204,6 @@ app.post("/ec/user/post", async (request, response) => {
     }
   });
 
-  
-
   app.get("/ec/products/:category", async (request, response) => {
     try {
       const { category } = request.params;
@@ -220,8 +222,6 @@ app.post("/ec/user/post", async (request, response) => {
     }
   });
   
-
-
 app.get("/ec/subcategories/:category", async (request, response) => {
   try {
     let { category } = request.params;
@@ -242,8 +242,6 @@ app.get("/ec/subcategories/:category", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-
 //products when category and subcategory are provided in the request body
 app.post("/ec/products", async (request, response) => {
   try {
@@ -267,7 +265,6 @@ app.post("/ec/products", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 //to add or change the address of the user
 app.post("/ec/add-address", async (request, response) => {
   try {
@@ -287,7 +284,6 @@ app.post("/ec/add-address", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 //to add a product to a cart (NOT BEING USED)
 app.post("/ec/cart/add-item", async (request, response) => {
   try {
@@ -308,7 +304,6 @@ app.post("/ec/cart/add-item", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 //to add a product to a cart (updated) it even checks if same product is in the cart updates it if present
 app.post("/ec/cart/add", async (request, response) => {
   try {
@@ -351,9 +346,6 @@ app.post("/ec/cart/add", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-
-
 //to change the quantity of a product in the cart
 app.put("/ec/cart/update-quantity", async (request, response) => {
   try {
@@ -375,8 +367,6 @@ app.put("/ec/cart/update-quantity", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-
 //removing a product from the cart
 app.delete("/ec/cart/remove", async (request, response) => {
   try {
@@ -397,7 +387,6 @@ app.delete("/ec/cart/remove", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 //to get all the products in the cart of a user
 app.post("/ec/cart/products", async (request, response) => {
   try {
@@ -416,7 +405,6 @@ app.post("/ec/cart/products", async (request, response) => {
     response.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 //get details of a product with its id (used in the Your Cart Section)
 app.get("/ec/product/:productId", async (request, response) => {
   try {
@@ -437,5 +425,150 @@ app.get("/ec/product/:productId", async (request, response) => {
   } catch (error) {
     console.error("Error fetching product details:", error.message);
     response.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
+
+///////// Education Portal
+
+ 
+app.post("/ep/faculty/post", async (req, res) => {
+  try {
+    const { name, email, password} = req.body;
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    const insertUserQuery = `
+      INSERT INTO faculty (faculty_id, name, password, email)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    const userId = uuid.v4(); // Generating a unique UserID using uuid
+
+    await EPDB.run(insertUserQuery, [userId, name, password, email]);
+
+    // Create a JWT token
+    const token = jwt.sign({ faculty_id: userId, name, email }, "your-secret-key", {
+      expiresIn: "1h", // Token expiration time (adjust as needed)
+    });
+
+    res.status(201).json({
+      faculty_id: userId,
+      name,
+      email,
+      token, // Include the JWT token in the response
+    });
+  } catch (error) {
+    console.error("Error adding user:", error.message);
+    res.status(500).json({ error: "Internal Server Error","Error adding user": error.message });
+  }
+});
+
+// Login for faculty and student
+app.post('/ep/faculty/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    const getUserQuery = `
+      SELECT faculty_id, name, email,password
+      FROM faculty
+      WHERE email = ?
+    `;
+
+    const user = await EPDB.get(getUserQuery, [email]);
+
+    // Check if the user exists and the password is correct
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    // Create a JWT token
+    const token = jwt.sign(
+      { user_id: user.user_id, name: user.name, email: user.email},
+      process.env.JWT_SECRET || 'your-default-secret-key',
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      faculty_id: user.faculty_id,
+      name: user.name,
+      email: user.email,
+      token,
+    });
+  } catch (error) {
+    console.error('Error during login:', error.message);
+    res.status(500).json({ error: { message: 'Internal Server Error', details: error.message } });
+  }
+});
+
+app.get('/ep/faculty/:facultyId/classes', async (req, res) => {
+  try {
+    const facultyId = req.params.facultyId;
+    console.log(facultyId)
+    const getClassesQuery = `
+      SELECT *
+      FROM classes
+      WHERE faculty_id = ?;
+    `;
+
+    const classes = await EPDB.all(getClassesQuery, [facultyId]);
+      res.status(200).json(classes);
+      
+  } catch (error) {
+    console.error('Error fetching classes:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/ep/faculty/class/:classid/students', async (req, res) => {
+  try {
+    const ClassId = parseInt(req.params.classid);
+
+    const getStudentsQuery = `
+    SELECT student.student_id, student.name, student.email, classes.class_description, classes.class_name
+      FROM class_student
+      JOIN student ON class_student.student_id = student.student_id
+      JOIN classes ON class_student.class_id = classes.class_id
+      WHERE class_student.class_id = ${ClassId};
+    `;
+
+    const students = await EPDB.all(getStudentsQuery);
+    res.status(200).json(students);
+      
+  } catch (error) {
+    console.error('Error fetching students:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/ep/faculty/class/:classId/info', async (req, res) => {
+  try {
+    const classId = req.params.classId;
+
+    const getClassInfoQuery = `
+      SELECT class_id, class_name, class_description, faculty_id
+      FROM classes
+      WHERE class_id = ?;
+    `;
+
+    const classInfo = await EPDB.get(getClassInfoQuery, [classId]);
+
+    if (!classInfo) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    res.status(200).json(classInfo);
+  } catch (error) {
+    console.error('Error fetching class information:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });

@@ -27,7 +27,7 @@ const initializeDBAndServer = async () => {
       filename : EPDBPath,
       driver: sqlite3.Database,
     });
-    app.listen(Por, () => {
+    app.listen(Port, () => {
       console.log("Server Running at http://localhost:3001/");
     });
   } catch (e) {

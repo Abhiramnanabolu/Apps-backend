@@ -513,7 +513,6 @@ app.post('/ep/faculty/login', async (req, res) => {
 app.get('/ep/faculty/:facultyId/classes', async (req, res) => {
   try {
     const facultyId = req.params.facultyId;
-    console.log(facultyId)
     const getClassesQuery = `
       SELECT *
       FROM classes
@@ -572,3 +571,30 @@ app.get('/ep/faculty/class/:classId/info', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+app.post('/ep/faculty/classes/add', async (req, res) => {
+  try {
+    const { class_name, class_description, faculty_id } = req.body;
+
+    // Assuming faculty_id is provided in the request body
+    if (!class_name || !faculty_id || !class_description) {
+        return res.status(400).json({ error: 'class_name and faculty_id are required in the request body' });
+    }
+
+    const addClassQuery = `
+      INSERT INTO classes (class_name, class_description, faculty_id)
+      VALUES (?, ?, ?);
+    `;
+
+    await EPDB.run(addClassQuery, [class_name, class_description, faculty_id]);
+
+    res.status(201).json({ message: 'Class added successfully' });
+  } catch (error) {
+    console.error('Error adding class:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/abcd',async(req,res)=>{
+  res.redirect("https://abhiramreddy.online");
+})

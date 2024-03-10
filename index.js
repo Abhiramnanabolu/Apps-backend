@@ -594,7 +594,3 @@ app.post('/ep/faculty/classes/add', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
-app.get('/abcd',async(req,res)=>{
-  res.redirect("https://abhiramreddy.online");
-})

@@ -10,7 +10,7 @@ const jwt = require("jsonwebtoken");
 const dbPath = path.join(__dirname, "EC-DB.db");
 const dbPath2 = path.join(__dirname, "EC-DB2.db");
 const EPDBPath = path.join(__dirname, "Edp.db");
-const Port=process.env.PORT || 3001
+const Port=process.env.PORT || 8080
 let db = null;
 
 const initializeDBAndServer = async () => {
@@ -25,10 +25,10 @@ const initializeDBAndServer = async () => {
     });
     EPDB=await open({
       filename : EPDBPath,
-      driver: sqlite3.Database,
+      driver: sqlite3.Database,// ep-1
     });
     app.listen(Port, () => {
-      console.log("Server Running at http://localhost:3001/");
+      console.log(`Server Running at http://localhost:${Port}/`);
     });
   } catch (e) {
     console.log(`DB Error: ${e.message}`);
@@ -494,7 +494,7 @@ app.post('/ep/faculty/login', async (req, res) => {
     // Create a JWT token
     const token = jwt.sign(
       { user_id: user.user_id, name: user.name, email: user.email},
-      process.env.JWT_SECRET || 'your-default-secret-key',
+      'your-default-secret-key',
       { expiresIn: '1h' }
     );
 
